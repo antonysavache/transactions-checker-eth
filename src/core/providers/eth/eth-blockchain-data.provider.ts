@@ -222,7 +222,9 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
                     if (tx.tokenSymbol) {
                         // Это ERC20 транзакция
                         const transaction = this.processErc20Transaction(tx, walletAddress);
-                        transactions.push(transaction);
+                        if (transaction) { // Проверяем, что транзакция не была отфильтрована
+                            transactions.push(transaction);
+                        }
                     } else {
                         // Это обычная ETH транзакция
                         const timestamp = parseInt(tx.timeStamp) * 1000;
@@ -287,7 +289,43 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
     /**
      * Обрабатывает ERC20 транзакцию
      */
-    private processErc20Transaction(tx: any, walletAddress: string): CompleteTransaction {
+    private processErc20Transaction(tx: any, walletAddress: string): CompleteTransaction | null {
+        // Список официальных адресов контрактов токенов
+        const officialTokenContracts = {
+            'USDT': '0xdac17f958d2ee523a2206206994597c13d831ec7', // Tether USD (USDT)
+            'USDC': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USD Coin (USDC)
+            'BUSD': '0x4fabb145d64652a948d72533023f6e7a623c7c53', // Binance USD (BUSD)
+            'DAI': '0x6b175474e89094c44da98b954eedeac495271d0f'  // Dai Stablecoin (DAI)
+        };
+        
+        // Проверяем, является ли токен оригинальным USDT
+        if (tx.tokenSymbol === 'USDT' && tx.contractAddress.toLowerCase() !== officialTokenContracts['USDT'].toLowerCase()) {
+            console.warn(`Skipping suspicious token transaction with symbol ${tx.tokenSymbol} but incorrect contract address ${tx.contractAddress}. Expected: ${officialTokenContracts['USDT']}`);
+            return null; // Не обрабатываем транзакцию с подозрительным токеном
+        }
+        
+        // Аналогично для других стейблкоинов
+        if (tx.tokenSymbol === 'USDC' && tx.contractAddress.toLowerCase() !== officialTokenContracts['USDC'].toLowerCase()) {
+            console.warn(`Skipping suspicious token transaction with symbol ${tx.tokenSymbol} but incorrect contract address ${tx.contractAddress}. Expected: ${officialTokenContracts['USDC']}`);
+            return null;
+        }
+        
+        if (tx.tokenSymbol === 'BUSD' && tx.contractAddress.toLowerCase() !== officialTokenContracts['BUSD'].toLowerCase()) {
+            console.warn(`Skipping suspicious token transaction with symbol ${tx.tokenSymbol} but incorrect contract address ${tx.contractAddress}. Expected: ${officialTokenContracts['BUSD']}`);
+            return null;
+        }
+        
+        if (tx.tokenSymbol === 'DAI' && tx.contractAddress.toLowerCase() !== officialTokenContracts['DAI'].toLowerCase()) {
+            console.warn(`Skipping suspicious token transaction with symbol ${tx.tokenSymbol} but incorrect contract address ${tx.contractAddress}. Expected: ${officialTokenContracts['DAI']}`);
+            return null;
+        }
+        
+        // Также проверяем на кириллические символы в названии токена
+        if (tx.tokenSymbol && /[А-Яа-я]/.test(tx.tokenSymbol)) {
+            console.warn(`Skipping token with Cyrillic symbols in name: ${tx.tokenSymbol}`);
+            return null;
+        }
+        
         const timestamp = parseInt(tx.timeStamp) * 1000;
         const date = new Date(timestamp);
         const formattedDate = this.formatDate(date);
@@ -377,6 +415,8 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
             }
 
             console.log(`Successfully fetched ${allTransactions.length} total transactions for wallet ${walletAddress}`);
+
+            console.log(123, allTransactions)
 
             return allTransactions;
         } catch (error) {
