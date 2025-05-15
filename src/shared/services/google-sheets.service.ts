@@ -222,13 +222,24 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   }
   
   private async initializeSheets(): Promise<void> {
-    const credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
-    if (!credentialsStr) {
-      throw new Error('GOOGLE_SHEETS_CREDENTIALS environment variable is not set');
-    }
-    
     try {
-      const credentials = JSON.parse(credentialsStr);
+      let credentials;
+      
+      // Попробуем сначала прочитать файл с учетными данными
+      const credentialsFile = process.env.GOOGLE_SHEETS_CREDENTIALS_FILE || 'google-credentials.json';
+      if (require('fs').existsSync(credentialsFile)) {
+        console.log(`GoogleSheetsService: Loading credentials from file: ${credentialsFile}`);
+        credentials = JSON.parse(require('fs').readFileSync(credentialsFile, 'utf8'));
+      } else {
+        // Если файла нет, пробуем использовать переменную окружения
+        const credentialsStr = process.env.GOOGLE_SHEETS_CREDENTIALS;
+        if (!credentialsStr) {
+          throw new Error('Neither GOOGLE_SHEETS_CREDENTIALS environment variable nor credentials file is available');
+        }
+        
+        console.log('GoogleSheetsService: Loading credentials from environment variable');
+        credentials = JSON.parse(credentialsStr);
+      }
       
       console.log(`GoogleSheetsService: Initializing with client_email: ${credentials.client_email}`);
       console.log(`GoogleSheetsService: Using spreadsheet ID: ${this.spreadsheetId}`);
@@ -239,8 +250,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       }
       
       // Проверяем наличие других важных настроек
-      const sheetsEnabled = process.env.GOOGLE_SHEETS_ENABLED;
-      console.log(`GoogleSheetsService: Google Sheets integration is ${sheetsEnabled === 'true' ? 'enabled' : 'disabled'}`);
+      console.log('GoogleSheetsService: Google Sheets integration is enabled');
       
       this.auth = new JWT({
         email: credentials.client_email,
@@ -258,7 +268,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       console.log(`- GOOGLE_SHEETS_ETH_TRANSACTIONS_RANGE: ${process.env.GOOGLE_SHEETS_ETH_TRANSACTIONS_RANGE || 'not set'}`);
       
     } catch (error) {
-      console.error('GoogleSheetsService: Error parsing credentials or initializing:', error);
+      console.error('GoogleSheetsService: Error loading credentials or initializing:', error);
       throw error;
     }
   }

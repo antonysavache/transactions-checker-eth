@@ -18,11 +18,11 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
     private maxRetries: number;
     private provider: ethers.JsonRpcProvider | null;
 
-    constructor(options: IEthServiceConfig = {}) {
-        this.apiUrl = options.apiUrl || 'https://api.etherscan.io/api';
-        this.apiKey = options.apiKey || '';
-        this.requestDelay = options.requestDelay || 300;
-        this.maxRetries = options.maxRetries || 3;
+    constructor() {
+        this.apiUrl = 'https://api.etherscan.io/api';
+        this.apiKey = 'V7IZ9DHUX36B3TW31HYWC97YGY2XI7J5US';
+        this.requestDelay = 300;
+        this.maxRetries = 3;
 
         try {
             // Для Etherscan API не требуется провайдер ethers.js

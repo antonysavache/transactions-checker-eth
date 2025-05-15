@@ -49,10 +49,10 @@ export class MonitorService implements Monitor, OnModuleInit {
   }
 
   private fetchWalletsFromSheets(): Observable<string[]> {
-    return this.repository.getWallets('tron-wallets');
+    return this.repository.getWallets('eth-wallets');
   }
 
   private saveTransactions(transactions: CompleteTransaction[]): void {
-    this.repository.saveTransactions(transactions, 'trans-tron');
+    this.repository.saveTransactions(transactions, 'trans-erc');
   }
 }
