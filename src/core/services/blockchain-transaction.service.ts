@@ -1,6 +1,6 @@
 import { Injectable} from "@nestjs/common";
 import { CompleteTransaction } from "@shared/models";
-import { Observable, from, tap } from "rxjs";
+import { Observable, tap } from "rxjs";
 import { EthereumBlockchainDataProvider } from "@core/providers/eth/eth-blockchain-data.provider";
 import { Repository } from "@shared/repository";
 
@@ -12,31 +12,41 @@ export class BlockchainTransaction {
     ) {}
 
     getTransactions(wallets: string[], intervalHours: number = 24): Observable<CompleteTransaction[]> {
-        // Получаем транзакции через провайдер
         return this.ethDataProvider.fetch(wallets, intervalHours).pipe(
-            tap(() => {
-                // Для каждого кошелька пытаемся получить фактические данные о транзакциях
-                // из исходных результатов API
+            tap(transactions => {
+                // Создаем карту для подсчета транзакций по кошелькам
+                const walletTransactionCounts = new Map<string, number>();
+                
+                // Подсчитываем транзакции для каждого кошелька
                 wallets.forEach(wallet => {
-                    // Приводим адрес кошелька к нижнему регистру для сравнения
-                    const lowerWallet = wallet.toLowerCase();
+                    const normalizedWallet = wallet.toLowerCase();
+                    let count = 0;
                     
-                    // Получаем баланс по API для кошелька
-                    const url = `https://api.etherscan.io/api?module=account&action=balance&address=${wallet}&tag=latest&apikey=V7IZ9DHUX36B3TW31HYWC97YGY2XI7J5US`;
+                    // Считаем все транзакции, где кошелек является отправителем или получателем
+                    transactions.forEach(tx => {
+                        const sender = tx.walletSender.toLowerCase();
+                        const receiver = tx.walletReceiver.toLowerCase();
+                        
+                        if (sender === normalizedWallet || receiver === normalizedWallet) {
+                            count++;
+                        }
+                    });
                     
-                    // Делаем запрос
-                    fetch(url)
-                        .then(response => response.json())
-                        .then(data => {
-                            // Этот запрос не даст количество транзакций, 
-                            // но мы можем использовать его для логирования наличия аккаунта
-                            const logMessage = `Successfully fetched transactions for wallet ${wallet}`;
-                            console.log(logMessage);
-                            this.repository.saveLog(logMessage);
-                        })
-                        .catch(err => {
-                            console.error(`Error fetching info for wallet ${wallet}:`, err);
-                        });
+                    // Сохраняем количество для этого кошелька
+                    walletTransactionCounts.set(normalizedWallet, count);
+                });
+                
+                // Логируем результаты для каждого кошелька
+                wallets.forEach(wallet => {
+                    const normalizedWallet = wallet.toLowerCase();
+                    const count = walletTransactionCounts.get(normalizedWallet) || 0;
+                    
+                    // Создаем сообщение лога с количеством транзакций
+                    const logMessage = `Successfully fetched ${count} total transactions for wallet ${wallet}`;
+                    console.log(logMessage);
+                    
+                    // Сохраняем лог в Google Sheets
+                    this.repository.saveLog(logMessage);
                 });
             })
         );
