@@ -403,6 +403,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
                 }`);
             }
 
+            // Стандартный ERC-20 запрос
             if (erc20Txs && erc20Txs.status === '1' && erc20Txs.result) {
                 // Фильтруем по времени
                 const filteredErc20Txs = erc20Txs.result.filter((tx: any) => {
@@ -410,12 +411,24 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
                     return txTimestamp >= startTime && txTimestamp <= endTime;
                 });
 
-                console.log(`Found ${filteredErc20Txs.length} ERC20 token transactions in time range`);
+                console.log(`Found ${filteredErc20Txs.length} ERC20 token transactions in time range (standard method)`);
                 allTransactions = [...allTransactions, ...filteredErc20Txs];
             } else {
-                console.log(`No ERC20 transactions found or error: ${
+                console.log(`Standard ERC20 method failed: ${
                     erc20Txs && erc20Txs.message ? erc20Txs.message : 'Unknown error'
                 }`);
+                
+                // Если стандартный ERC-20 запрос неудачен, используем улучшенный метод
+                console.log(`Trying enhanced ERC-20 method for ${walletAddress}`);
+                await new Promise(resolve => setTimeout(resolve, this.requestDelay * 2)); // Дополнительная пауза
+                
+                const enhancedErc20Txs = await this.getErc20TransactionsEnhanced(walletAddress, startTime, endTime);
+                if (enhancedErc20Txs.length > 0) {
+                    console.log(`Enhanced ERC-20 method found ${enhancedErc20Txs.length} transactions`);
+                    allTransactions = [...allTransactions, ...enhancedErc20Txs];
+                } else {
+                    console.log(`Enhanced ERC-20 method also returned no transactions`);
+                }
             }
 
             console.log(`Successfully fetched ${allTransactions.length} total transactions for wallet ${walletAddress}`);
@@ -486,6 +499,120 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
             } else {
                 console.error(`API request failed after ${this.maxRetries} attempts:`, error.message);
                 throw new Error(`Failed after ${this.maxRetries} attempts: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * Улучшенный метод получения ERC-20 транзакций с дополнительными проверками
+     * @param walletAddress Адрес кошелька
+     * @param startTime Начальное время в миллисекундах
+     * @param endTime Конечное время в миллисекундах
+     * @returns Promise с ERC-20 транзакциями
+     */
+    private async getErc20TransactionsEnhanced(walletAddress: string, startTime: number, endTime: number): Promise<any[]> {
+        try {
+            console.log(`Enhanced ERC-20 fetch for wallet ${walletAddress}`);
+
+            // Увеличенная задержка для ERC-20 запросов
+            const enhancedDelay = this.requestDelay * 2; // 2 секунды
+            const enhancedRetries = this.maxRetries + 2; // 5 попыток
+
+            // Первый запрос - стандартный
+            console.log(`Making enhanced ERC-20 request (attempt 1) for ${walletAddress}`);
+            const erc20TxsUrl = `${this.apiUrl}?module=account&action=tokentx&address=${walletAddress}&startblock=0&endblock=999999999&sort=desc&apikey=${this.apiKey}`;
+            
+            let erc20Txs = await this._fetchTransactionsWithRetryEnhanced(erc20TxsUrl, enhancedRetries, enhancedDelay);
+
+            // Если первый запрос не удался или вернул мало данных, делаем дополнительные попытки
+            if (!erc20Txs || erc20Txs.status !== '1' || !erc20Txs.result || erc20Txs.result.length === 0) {
+                console.log(`Enhanced ERC-20: First attempt failed or returned no data, trying alternative approach`);
+                
+                // Дополнительная пауза перед повторным запросом
+                await new Promise(resolve => setTimeout(resolve, enhancedDelay));
+                
+                // Второй запрос с измененными параметрами (последние 1000 блоков)
+                const currentBlock = await this.getCurrentBlock();
+                if (currentBlock > 0) {
+                    const fromBlock = Math.max(0, currentBlock - 1000);
+                    const erc20TxsUrlLimited = `${this.apiUrl}?module=account&action=tokentx&address=${walletAddress}&startblock=${fromBlock}&endblock=${currentBlock}&sort=desc&apikey=${this.apiKey}`;
+                    
+                    console.log(`Enhanced ERC-20: Trying limited block range ${fromBlock}-${currentBlock}`);
+                    erc20Txs = await this._fetchTransactionsWithRetryEnhanced(erc20TxsUrlLimited, enhancedRetries, enhancedDelay);
+                }
+            }
+
+            // Собираем все ERC-20 транзакции
+            let allErc20Transactions: any[] = [];
+
+            if (erc20Txs && erc20Txs.status === '1' && erc20Txs.result) {
+                // Фильтруем по времени
+                const filteredErc20Txs = erc20Txs.result.filter((tx: any) => {
+                    const txTimestamp = parseInt(tx.timeStamp) * 1000;
+                    return txTimestamp >= startTime && txTimestamp <= endTime;
+                });
+
+                console.log(`Enhanced ERC-20: Found ${filteredErc20Txs.length} ERC-20 transactions in time range`);
+                allErc20Transactions = [...allErc20Transactions, ...filteredErc20Txs];
+            } else {
+                console.log(`Enhanced ERC-20: No transactions found or error: ${
+                    erc20Txs && erc20Txs.message ? erc20Txs.message : 'Unknown error'
+                }`);
+            }
+
+            return allErc20Transactions;
+
+        } catch (error) {
+            console.error(`Enhanced ERC-20: Error fetching transactions for wallet ${walletAddress}:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Получает текущий номер блока
+     */
+    private async getCurrentBlock(): Promise<number> {
+        try {
+            const url = `${this.apiUrl}?module=proxy&action=eth_blockNumber&apikey=${this.apiKey}`;
+            const response = await axios.get(url, { timeout: 10000 });
+            
+            if (response.data && response.data.result) {
+                return parseInt(response.data.result, 16);
+            }
+            return 0;
+        } catch (error) {
+            console.error('Error getting current block:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Улучшенная версия HTTP-запроса с повторными попытками для ERC-20
+     */
+    private async _fetchTransactionsWithRetryEnhanced(url: string, maxRetries: number = 5, delay: number = 2000, retryCount = 0): Promise<any> {
+        try {
+            console.log(`Enhanced API request to ${url} (attempt ${retryCount + 1}/${maxRetries})`);
+
+            const response = await axios.get(url, { timeout: 45000 }); // Увеличенный timeout
+
+            console.log(`Enhanced API request successful: status=${response.data?.status}, message="${response.data?.message}"`);
+            return response.data;
+        } catch (error: any) {
+            const isTimeout = error.code === 'ECONNABORTED' || (error.message && error.message.includes('timeout'));
+            const isRateLimit = error.response?.data?.result?.includes?.('rate limit') || 
+                               error.response?.data?.message?.includes?.('rate limit');
+
+            if (retryCount < maxRetries) {
+                // Увеличиваем задержку при rate limit ошибках
+                const retryDelay = isRateLimit ? delay * 3 : Math.pow(2, retryCount) * delay;
+                
+                console.warn(`Enhanced API request failed (${isTimeout ? 'timeout' : isRateLimit ? 'rate limit' : 'error'}), retrying after ${retryDelay}ms (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
+
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                return this._fetchTransactionsWithRetryEnhanced(url, maxRetries, delay, retryCount + 1);
+            } else {
+                console.error(`Enhanced API request failed after ${maxRetries} attempts:`, error.message);
+                throw new Error(`Failed after ${maxRetries} attempts: ${error.message}`);
             }
         }
     }
