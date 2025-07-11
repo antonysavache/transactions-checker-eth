@@ -19,10 +19,10 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
     private provider: ethers.JsonRpcProvider | null;
 
     constructor() {
-        this.apiUrl = 'https://api.etherscan.io/api';
-        this.apiKey = 'V7IZ9DHUX36B3TW31HYWC97YGY2XI7J5US';
-        this.requestDelay = 300;
-        this.maxRetries = 3;
+        this.apiUrl = process.env.ETH_API_URL || 'https://api.etherscan.io/api';
+        this.apiKey = process.env.ETH_API_KEY || 'V7IZ9DHUX36B3TW31HYWC97YGY2XI7J5US';
+        this.requestDelay = parseInt(process.env.REQUEST_DELAY || '1000'); // Увеличиваем до 1 сек
+        this.maxRetries = parseInt(process.env.MAX_RETRIES || '3');
 
         try {
             // Для Etherscan API не требуется провайдер ethers.js
@@ -375,6 +375,10 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
             console.log(`Fetching normal ETH transactions for ${walletAddress}`);
             const normalTxsUrl = `${this.apiUrl}?module=account&action=txlist&address=${walletAddress}&startblock=${startBlock}&endblock=${endBlock}&sort=desc&apikey=${this.apiKey}`;
             const normalTxs = await this._fetchTransactionsWithRetry(normalTxsUrl);
+
+            // ДОБАВЛЯЕМ ЗАДЕРЖКУ МЕЖДУ ЗАПРОСАМИ!
+            console.log(`Adding delay of ${this.requestDelay}ms between ETH and ERC-20 requests`);
+            await new Promise(resolve => setTimeout(resolve, this.requestDelay));
 
             // Получаем ERC20 транзакции
             console.log(`Fetching ERC20 token transactions for ${walletAddress}`);
