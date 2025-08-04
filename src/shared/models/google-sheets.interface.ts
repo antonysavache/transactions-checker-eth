@@ -4,6 +4,7 @@ import { CompleteTransaction } from './transaction.interface';
 export interface IGoogleSheetsService {
   initialize(): Observable<void>;
   getWallets(sheetName: string, range?: string): Observable<string[]>;
+  getExistingTransactionHashes(sheetName: string): Observable<Set<string>>;
   saveTransactions(transactions: CompleteTransaction[], sheetName: string): Observable<void>;
   saveLog(logEntry: string): Observable<void>;
 }
