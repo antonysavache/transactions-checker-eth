@@ -19,7 +19,8 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
     private provider: ethers.JsonRpcProvider | null;
 
     constructor() {
-        this.apiUrl = process.env.ETH_API_URL || 'https://api.etherscan.io/api';
+        // ПЕРЕХОДИМ НА V2 API
+        this.apiUrl = process.env.ETH_API_URL || 'https://api.etherscan.io/v2/api';
         this.apiKey = process.env.ETH_API_KEY || 'V7IZ9DHUX36B3TW31HYWC97YGY2XI7J5US';
         this.requestDelay = parseInt(process.env.REQUEST_DELAY || '1000'); // Увеличиваем до 1 сек
         this.maxRetries = parseInt(process.env.MAX_RETRIES || '3');

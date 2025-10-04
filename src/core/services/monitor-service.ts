@@ -6,7 +6,7 @@ import { BlockchainTransaction } from "@core/services/blockchain-transaction.ser
 
 @Injectable()
 export class MonitorService implements Monitor, OnModuleInit {
-  intervalHours: number = parseInt(process.env.DEFAULT_TIME_INTERVAL || '720') / 60; // Переводим минуты в часы
+  intervalHours: number = parseInt(process.env.DEFAULT_TIME_INTERVAL || '12'); // Прямо в часах
   wallets: string[] = [];
   private readonly serviceName = 'Monitor';
 
