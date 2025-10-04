@@ -81,7 +81,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
         console.log(`EthereumBlockchainDataProvider: Fetching transaction ${txHash}`);
 
         // Делаем запрос к Etherscan API
-        const url = `${this.apiUrl}?module=proxy&action=eth_getTransactionByHash&txhash=${txHash}&apikey=${this.apiKey}`;
+        const url = `${this.apiUrl}?chainid=1&module=proxy&action=eth_getTransactionByHash&txhash=${txHash}&apikey=${this.apiKey}`;
 
         return from(this._fetchTransactionsWithRetry(url)).pipe(
             map(result => {
@@ -127,7 +127,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
         console.log(`EthereumBlockchainDataProvider: Fetching transaction receipt ${txHash}`);
 
         // Делаем запрос к Etherscan API
-        const url = `${this.apiUrl}?module=proxy&action=eth_getTransactionReceipt&txhash=${txHash}&apikey=${this.apiKey}`;
+        const url = `${this.apiUrl}?chainid=1&module=proxy&action=eth_getTransactionReceipt&txhash=${txHash}&apikey=${this.apiKey}`;
 
         return from(this._fetchTransactionsWithRetry(url)).pipe(
             map(result => {
@@ -374,7 +374,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
 
             // Получаем обычные транзакции ETH
             console.log(`Fetching normal ETH transactions for ${walletAddress}`);
-            const normalTxsUrl = `${this.apiUrl}?module=account&action=txlist&address=${walletAddress}&startblock=${startBlock}&endblock=${endBlock}&sort=desc&apikey=${this.apiKey}`;
+            const normalTxsUrl = `${this.apiUrl}?chainid=1&module=account&action=txlist&address=${walletAddress}&startblock=${startBlock}&endblock=${endBlock}&sort=desc&apikey=${this.apiKey}`;
             const normalTxs = await this._fetchTransactionsWithRetry(normalTxsUrl);
 
             // ДОБАВЛЯЕМ ЗАДЕРЖКУ МЕЖДУ ЗАПРОСАМИ!
@@ -383,7 +383,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
 
             // Получаем ERC20 транзакции
             console.log(`Fetching ERC20 token transactions for ${walletAddress}`);
-            const erc20TxsUrl = `${this.apiUrl}?module=account&action=tokentx&address=${walletAddress}&startblock=${startBlock}&endblock=${endBlock}&sort=desc&apikey=${this.apiKey}`;
+            const erc20TxsUrl = `${this.apiUrl}?chainid=1&module=account&action=tokentx&address=${walletAddress}&startblock=${startBlock}&endblock=${endBlock}&sort=desc&apikey=${this.apiKey}`;
             const erc20Txs = await this._fetchTransactionsWithRetry(erc20TxsUrl);
 
             // Собираем все транзакции
@@ -521,7 +521,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
 
             // Первый запрос - стандартный
             console.log(`Making enhanced ERC-20 request (attempt 1) for ${walletAddress}`);
-            const erc20TxsUrl = `${this.apiUrl}?module=account&action=tokentx&address=${walletAddress}&startblock=0&endblock=999999999&sort=desc&apikey=${this.apiKey}`;
+            const erc20TxsUrl = `${this.apiUrl}?chainid=1&module=account&action=tokentx&address=${walletAddress}&startblock=0&endblock=999999999&sort=desc&apikey=${this.apiKey}`;
             
             let erc20Txs = await this._fetchTransactionsWithRetryEnhanced(erc20TxsUrl, enhancedRetries, enhancedDelay);
 
@@ -536,7 +536,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
                 const currentBlock = await this.getCurrentBlock();
                 if (currentBlock > 0) {
                     const fromBlock = Math.max(0, currentBlock - 1000);
-                    const erc20TxsUrlLimited = `${this.apiUrl}?module=account&action=tokentx&address=${walletAddress}&startblock=${fromBlock}&endblock=${currentBlock}&sort=desc&apikey=${this.apiKey}`;
+                    const erc20TxsUrlLimited = `${this.apiUrl}?chainid=1&module=account&action=tokentx&address=${walletAddress}&startblock=${fromBlock}&endblock=${currentBlock}&sort=desc&apikey=${this.apiKey}`;
                     
                     console.log(`Enhanced ERC-20: Trying limited block range ${fromBlock}-${currentBlock}`);
                     erc20Txs = await this._fetchTransactionsWithRetryEnhanced(erc20TxsUrlLimited, enhancedRetries, enhancedDelay);
@@ -574,7 +574,7 @@ export class EthereumBlockchainDataProvider implements IBlockchainDataProvider {
      */
     private async getCurrentBlock(): Promise<number> {
         try {
-            const url = `${this.apiUrl}?module=proxy&action=eth_blockNumber&apikey=${this.apiKey}`;
+            const url = `${this.apiUrl}?chainid=1&module=proxy&action=eth_blockNumber&apikey=${this.apiKey}`;
             const response = await axios.get(url, { timeout: 10000 });
             
             if (response.data && response.data.result) {
